@@ -1,0 +1,109 @@
+#include "hspmath.as"
+
+//どうしてHSPには階乗が無いのか
+#module
+#defcfunc fact int v
+	dim ans : ans = 1
+	if v > 0{
+		repeat v, 1
+			ans = ans * cnt
+		loop
+	}
+	return ans
+#defcfunc arrsum array v
+	dim ans : ans = 0
+	repeat length(v)
+		ans += v(cnt)
+	loop
+	return ans
+#global
+	
+randomize
+
+*init
+	; TODO xやyがfrqの倍数より僅かに小さい場合に歪なマップが発生する
+	
+	screen 0,640,480
+	
+	dim xsize : xsize = 25
+	dim ysize : ysize = 25
+	dim irsize : irsize = 3
+	dim arsize : arsize = 7
+	dim stage,xsize,ysize
+
+	gosub *makemap
+
+	repeat xsize
+		prstr = ""
+		i = cnt
+		repeat ysize
+			prstr += str(stage(i,cnt))
+		loop
+		mes prstr
+	loop
+	
+	stop
+
+*makemap
+	//目標部屋数
+	dim tr : tr = int(sqrt(xsize * ysize) / ((arsize + irsize) / 2) * 2.5)
+	//部屋情報を持つ変数
+	dim rooms, tr, 4
+	//1つ目の部屋を生成する
+	dim rx : rx = rnd(arsize - irsize) + irsize
+	dim ry : ry = rnd(arsize - irsize) + irsize
+	dim px : px = rnd(xsize - rx)
+	dim py : py = rnd(ysize - ry)
+	repeat rx, px
+		x = cnt
+		repeat ry, py
+			stage(x, cnt) = 1
+		loop
+	loop
+	//CAUTION rooms(?, 0)とrooms(?, 2)の合計は小部屋の端から1つ下にずれる
+	rooms(0, 0) = rx : rooms(0, 1) = ry : rooms(0, 2) = px : rooms(0, 3) = py
+	dim rp : rp = 0								//部屋ポインタ
+	//2つ目以降の部屋を生成する
+	repeat -1
+		//直前の部屋から4方向を確認する
+		dim vb, 4
+		//上
+		dim tmp
+		if rooms(rp, 2) < 2 : vb(0) = 0 : else{
+			//はみ出さないので既に床がないか確認する
+			repeat rooms(rp, 1), rooms(rp, 3)
+				tmp += stage(rooms(rp, 2) - 1, cnt)
+				tmp += stage(rooms(rp, 2) - 2, cnt)
+			loop
+			if tmp = 0 : vb(0) = 1 : else : vb(0) = 0
+		}
+		//左
+		if rooms(rp, 3) < 2 : vb(1) = 0 : else {
+			repeat rooms(rp, 0), rooms(rp, 2)
+				tmp += stage(cnt, rooms(rp, 3) - 1)
+				tmp += stage(cnt, rooms(rp, 3) - 2)
+			loop
+			if tmp = 0 : vb(1) = 1 : else : vb(1) = 0
+		}
+		//下
+		if rooms(rp, 0) + rooms(rp, 2) > xsize - 2 : vb(2) = 0 : else {
+			repeat rooms(rp, 1), rooms(rp, 1) + rooms(rp, 3) - 1
+				tmp += stage(rooms(rp, 0) + rooms(rp, 2), cnt)
+				tmp += stage(rooms(rp, 0) + rooms(rp, 2) + 1, cnt)
+			loop
+			if tmp = 0 : vb(2) = 1 : else : vb(2) = 0
+		}
+		//右
+		if rooms(rp, 1) + rooms(rp, 3) > ysize - 2 : vb(3) = 0 : else {
+			repeat rooms(rp, 0), rooms(rp, 0) + rooms(rp, 2) - 1
+				tmp += stage(rooms(rp, 1) + rooms(rp, 3), cnt)
+				tmp += stage(rooms(rp, 1) + rooms(rp, 3) + 1, cnt)
+			loop
+			if tmp = 0 : vb(3) = 1 : else : vb(3) = 0
+		}
+		if arrsum(vb) = 0 {
+			
+		}
+		break
+	loop
+	return

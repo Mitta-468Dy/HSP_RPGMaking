@@ -1,0 +1,221 @@
+*makemap
+	dim X_ROOM_COUNT : X_ROOM_COUNT = int(xsize / frq)
+	dim Y_ROOM_COUNT : Y_ROOM_COUNT = int(ysize / frq)
+	dim MAX_R_NUM : MAX_R_NUM = X_ROOM_COUNT * Y_ROOM_COUNT
+	dim rooms,MAX_R_NUM,4
+
+	//隣接情報
+	dim adj,MAX_R_NUM,2
+	repeat X_ROOM_COUNT
+		x = cnt
+		repeat Y_ROOM_COUNT
+			y = cnt
+			dim rNum : rNum = x * X_ROOM_COUNT + y
+			if y + 1 ! Y_ROOM_COUNT{
+				adj(rNum, 0) = rNum + 1
+			}else{
+				adj(rNum, 0) = -1
+			}
+			if x + 1 ! X_ROOM_COUNT{
+				adj(rNum, 1) = rNum + X_ROOM_COUNT
+			}else{
+				adj(rNum, 1) = -1
+			}
+		loop
+	loop
+
+	//部屋生成
+	dim flcnt : flcnt = 0						//床の数
+	repeat X_ROOM_COUNT
+		xr = cnt
+		repeat Y_ROOM_COUNT
+			yr = cnt
+			//小部屋の最大の大きさ
+			dim xm : xm = frq
+			dim ym : ym = frq
+			//右端、下端の小部屋サイズは端数を含んで計算
+			if xr + 1 = X_ROOM_COUNT{
+				xm += xsize \ frq
+			}
+			if yr + 1 = Y_ROOM_COUNT{
+				ym += ysize \ frq
+			}
+			//実際の小部屋サイズを計算
+			dim xs : xs = rnd(xm - 1) + 1
+			dim ys : ys = rnd(ym - 1) + 1
+			//床の数を加算
+			flcnt += xs * ys
+			//小部屋の左上マスを決定
+			dim xp : xp = rnd(xm - xs)
+			dim yp : yp = rnd(ym - ys)
+			//小部屋
+			repeat xs
+				x = cnt
+				repeat ys
+					y = cnt
+					stage(xr * frq + xp + x, yr * frq + yp + y) = 1
+				loop
+			loop
+			dim rn : rn = xr * X_ROOM_COUNT + yr
+			rooms(rn, 0) = xr * frq + xp
+			rooms(rn, 1) = yr * frq + yp
+			rooms(rn, 2) = xr * frq + xp + xs
+			rooms(rn, 3) = yr * frq + yp + ys
+		loop
+	loop
+
+	//床情報
+	; NEED 「幅」が1の小部屋は対象外
+	dim floors,flcnt,2
+	dim ftmp : ftmp = 0
+	repeat xsize
+		x = cnt
+		repeat ysize
+			y = cnt
+			if stage(x, y) = 1{
+				floors(ftmp, 0) = x
+				floors(ftmp, 1) = y
+				ftmp+
+			}
+		loop
+	loop
+
+	//階段配置
+	dim pt : pt = rnd(flcnt)
+	stage(floors(pt, 0), floors(pt, 1)) = 2
+
+	//接続通路 非接続小部屋を取得
+	if frq <= 3{
+		t = 0
+	}else{
+		t = int(fact(MAX_R_NUM) / (2 * fact(MAX_R_NUM - 2)))
+	}
+	dim nAdjArr,t,3
+	dim ntmp : ntmp = 0
+	repeat MAX_R_NUM
+		i = cnt
+		repeat 2
+			v = cnt
+			if adj(i, v) ! -1{
+				dim retEx
+				dim locked_x
+				dim locked_y
+				if v = 0{
+					//右に確認
+					locked_y = rooms(i, 3)
+					repeat rooms(i, 2) - rooms(i, 0), rooms(i, 0)
+						retEx += stage(cnt, locked_y)
+					loop
+				}else{
+					//下に確認
+					locked_x = rooms(i, 3)
+					repeat rooms(i, 3) - rooms(i, 1), rooms(i, 1)
+						retEx += stage(locked_x, y)
+					loop
+				}
+				if retEx = 0{
+					//繋がっていない
+					nAdjArr(ntmp, 0) = i
+					nAdjArr(ntmp, 1) = adj(i, v)
+					nAdjArr(ntmp, 2) = v
+					ntmp+
+				}
+			}
+		loop
+	loop
+	//共有する座標を取得
+	dim c_Pos,ntmp*frq,frq
+	dim ctmp : ctmp = 0
+	dim cxtmp,ntmp*frq
+	repeat ntmp
+		chk = cnt
+		ctmp+
+		if nAdjArr(chk, 2) = 0{
+			dim x_ChkArr,xsize
+			repeat 2
+				i = cnt
+				repeat rooms(nAdjArr(chk, i), 2) - rooms(nAdjArr(chk, i), 0), rooms(nAdjArr(chk, i), 0)
+					x_ChkArr(cnt)+
+				loop
+			loop
+			repeat xsize
+				if x_ChkArr(cnt) = 2{
+					c_Pos(ctmp, cxtmp(ctmp)) = cnt
+					cxtmp(ctmp)+
+				}
+			loop
+		}else{
+			dim y_ChkArr,ysize
+			repeat 2
+				i = cnt
+				repeat rooms(nAdjArr(chk, i), 3) - rooms(nAdjArr(chk, i), 1), rooms(nAdjArr(chk, i), 1)
+					y_ChkArr(cnt)+
+				loop
+			loop
+			repeat xsize
+				if y_ChkArr(cnt) = 2{
+					c_Pos(ctmp, cxtmp(ctmp)) = cnt
+					cxtmp(ctmp)+
+				}
+			loop
+		}
+	loop
+
+	//接続線を描く
+	repeat MAX_R_NUM
+		i = cnt
+		dim tmp,ntmp
+		dim tsize : tsize = 0
+		repeat ntmp
+			if nAdjArr(cnt, 0) = i{
+				tmp(tsize) = cnt
+				tsize+
+			}
+		loop
+		//線を描く必要があるか
+		if tsize >= 1{
+			//線を描く
+			repeat tsize
+				l = cnt
+				if (l = 0) | (true){
+					dim proom : proom = nAdjArr(tmp(l), 0)
+					dim sroom : sroom = nAdjArr(tmp(l), 1)
+					if cxtmp(tmp(l)) = 0{
+						dim xt : xt = rnd(rooms(sroom, 2) - rooms(sroom, 0)) + rooms(sroom, 0)
+						dim yt : yt = rnd(rooms(proom, 3) - rooms(proom, 1)) + rooms(proom, 1)
+						dim jVec
+						repeat rooms(sroom, 2) - xt, xt
+							stage(cnt, yt) = 3
+						loop
+						if rooms(proom, 3) < rooms(sroom, 1){
+							//右
+							repeat rooms(sroom, 1) - yt, yt
+								stage(xt, cnt) = 3
+							loop
+						}else{
+							//左
+							repeat yt - rooms(sroom, 1), rooms(sroom, 1)
+								stage(xt, cnt) = 3
+							loop
+						}
+					}else{
+						//直線で描ける
+						dim line_pos : line_pos = c_Pos(tmp(l), rnd(cxtmp(tmp(l))))
+						if nAdjArr(tmp(l), 2) = 0{
+							//横
+							repeat rooms(sroom, 1) - rooms(proom, 3), rooms(proom, 3)
+								stage(line_pos, cnt) = 4
+							loop
+						}else{
+							//縦
+							repeat rooms(sroom, 0) - rooms(proom, 2), rooms(proom, 2)
+								stage(cnt, line_pos) = 4
+							loop
+						}
+					}
+				}
+			loop
+		}
+	loop
+	
+	return
